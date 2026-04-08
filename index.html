@@ -2,37 +2,60 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Ewidencja czasu pracy</title>
 
 <style>
 :root {
   --bg:#f5f7fb;
-  --panel:#fff;
+  --panel:#ffffff;
   --line:#d7ddea;
   --text:#1f2937;
   --muted:#6b7280;
   --brand:#2f6fed;
+  --brand-2:#1d4ed8;
+  --weekend:#fce7f3;
   --danger:#b91c1c;
+  --ok:#166534;
+  --shadow:0 10px 30px rgba(0,0,0,.08);
 }
-
-body{margin:0;font-family:Arial;background:var(--bg);}
+*{box-sizing:border-box;}
+body{margin:0;font-family:Arial;background:var(--bg);color:var(--text);}
 .wrap{max-width:1400px;margin:auto;padding:20px;}
 
-.panel{
-  background:#fff;
-  border-radius:12px;
-  padding:16px;
-  margin-bottom:15px;
-}
+.topbar{display:flex;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px;}
+h1{margin:0;font-size:28px;}
 
-button{padding:10px;border:0;border-radius:8px;cursor:pointer;}
-.primary{background:#2f6fed;color:#fff;}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:16px;}
+.panel{background:#fff;border-radius:16px;padding:16px;box-shadow:var(--shadow);}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.form-row.single{grid-template-columns:1fr;}
+
+input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);}
+textarea{min-height:70px;}
+
+button{border:0;border-radius:12px;padding:10px;cursor:pointer;font-weight:700;}
+.primary{background:var(--brand);color:#fff;}
 .secondary{background:#eef2ff;}
-.danger{background:#fee2e2;color:#b91c1c;}
 .ghost{background:#f3f4f6;}
+.danger{background:#fee2e2;color:var(--danger);}
+.success{background:#dcfce7;color:var(--ok);}
 
 table{width:100%;border-collapse:collapse;font-size:13px;}
-th,td{border:1px solid #ccc;padding:6px;}
+th,td{border:1px solid var(--line);padding:6px;}
+th{background:#f8fafc;}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.chip{border:1px solid var(--line);padding:6px 10px;border-radius:999px;cursor:pointer;}
+
+#printSheet{display:none;}
+
+@media print{
+  body *{visibility:hidden!important;}
+  #printSheet,#printSheet *{visibility:visible!important;}
+  #printSheet{display:block;position:absolute;top:0;left:0;width:210mm;}
+}
 </style>
 </head>
 
@@ -40,45 +63,60 @@ th,td{border:1px solid #ccc;padding:6px;}
 
 <div class="wrap">
 
-<h2>Ewidencja czasu pracy</h2>
+<div class="topbar">
+  <h1>Ewidencja czasu pracy</h1>
 
-<div class="panel">
-<input id="fullName" placeholder="Imię i nazwisko">
+  <div style="display:flex;gap:10px;align-items:end;">
+    <input id="fullName" placeholder="Imię i nazwisko">
 
-<select id="monthSelect"></select>
-<input id="yearInput" type="number">
+    <select id="monthSelect"></select>
+    <input id="yearInput" type="number" style="width:90px">
 
-<button id="previewBtn">Podgląd</button>
-<button id="printBtn">PDF</button>
+    <button class="secondary" id="previewBtn">Podgląd</button>
+    <button class="primary" id="printBtn">PDF</button>
+  </div>
 </div>
 
+<div class="grid">
+
 <div class="panel">
 
+<h3>Wpis</h3>
+
+<div class="form-row">
 <select id="day"></select>
 <select id="crpSelect"></select>
+</div>
 
+<div class="form-row">
 <input type="time" id="startTime">
 <input type="time" id="endTime">
-
-<textarea id="description"></textarea>
-
-<button id="saveBtn">Zapisz</button>
-
 </div>
 
-<div class="panel">
+<div class="form-row single">
+<textarea id="description"></textarea>
+</div>
+
+<button class="primary" id="saveBtn">Zapisz</button>
+
+<hr>
+
 <h3>CRP</h3>
 
+<div class="form-row">
 <input id="crpCode" placeholder="Kod">
 <input id="crpLabel" placeholder="Opis">
+</div>
 
-<button id="addCrpBtn">Dodaj</button>
+<button class="secondary" id="addCrpBtn">Dodaj</button>
 <button class="danger" id="deleteCrpBtn">Usuń CRP</button>
 
-<div id="crpChips"></div>
+<div class="chips" id="crpChips"></div>
+
 </div>
 
 <div class="panel">
+
 <table>
 <thead>
 <tr>
@@ -92,29 +130,29 @@ th,td{border:1px solid #ccc;padding:6px;}
 </thead>
 <tbody id="entriesBody"></tbody>
 </table>
+
 </div>
 
+</div>
 </div>
 
 <div id="printSheet"></div>
 
 <script>
-const STORAGE_KEY = "ewidencja";
+const STORAGE="ewidencja";
 
-function getKey(){
-  return STORAGE_KEY+"-"+state.year+"-"+state.month;
+function key(){
+  return STORAGE+"-"+state.year+"-"+state.month;
 }
 
-let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
-  month:new Date().getMonth(),
-  year:new Date().getFullYear(),
+const now=new Date();
+
+let state=JSON.parse(localStorage.getItem(STORAGE))||{
+  month:now.getMonth(),
+  year:now.getFullYear(),
   crps:[],
   entries:[]
 };
-
-function save(){
-  localStorage.setItem(getKey(),JSON.stringify(state));
-}
 
 const el=id=>document.getElementById(id);
 
@@ -123,41 +161,34 @@ const yearInput=el("yearInput");
 
 for(let i=0;i<12;i++){
   let o=document.createElement("option");
-  o.value=i;
-  o.textContent=i+1;
+  o.value=i;o.textContent=i+1;
   monthSelect.appendChild(o);
 }
 
 monthSelect.value=state.month;
 yearInput.value=state.year;
 
-monthSelect.onchange=()=>{
-  state.month=Number(monthSelect.value);
-  load();
-};
+monthSelect.onchange=()=>{state.month=+monthSelect.value;load();}
+yearInput.oninput=()=>{state.year=+yearInput.value;load();}
 
-yearInput.oninput=()=>{
-  state.year=Number(yearInput.value);
-  load();
-};
+function save(){
+  localStorage.setItem(key(),JSON.stringify(state));
+}
 
 function load(){
-  let saved=JSON.parse(localStorage.getItem(getKey()));
-  state.entries=saved?.entries||[];
-  state.crps=saved?.crps||[];
+  let s=JSON.parse(localStorage.getItem(key()));
+  state.entries=s?.entries||[];
+  state.crps=s?.crps||[];
   render();
 }
 
-function render(){
-  renderDays();
-  renderCrps();
-  renderEntries();
+function days(){
+  return new Date(state.year,state.month+1,0).getDate();
 }
 
 function renderDays(){
-  let d=new Date(state.year,state.month+1,0).getDate();
   el("day").innerHTML="";
-  for(let i=1;i<=d;i++){
+  for(let i=1;i<=days();i++){
     let o=document.createElement("option");
     o.value=i;o.textContent=i;
     el("day").appendChild(o);
@@ -171,15 +202,18 @@ function renderCrps(){
   state.crps.forEach(c=>{
     let o=document.createElement("option");
     o.value=c.id;
-    o.textContent=c.code;
+    o.textContent=c.code+"_"+(c.label||"");
     el("crpSelect").appendChild(o);
 
     let chip=document.createElement("div");
+    chip.className="chip";
     chip.textContent=c.code+"_"+(c.label||"");
+
     chip.onclick=()=>{
       el("crpCode").value=c.code;
       el("crpLabel").value=c.label||"";
     };
+
     el("crpChips").appendChild(chip);
   });
 }
@@ -194,35 +228,57 @@ function renderEntries(){
   let body=el("entriesBody");
   body.innerHTML="";
 
+  let map={};
+
   state.entries.forEach(e=>{
-    let tr=document.createElement("tr");
-
-    tr.innerHTML=`
-    <td>${e.day}</td>
-    <td>${e.code}</td>
-    <td>${e.start}</td>
-    <td>${e.end}</td>
-    <td>${hours(e.start,e.end).toFixed(2)}</td>
-    <td>${e.desc}</td>
-    `;
-
-    body.appendChild(tr);
+    if(!map[e.day])map[e.day]=[];
+    map[e.day].push(e);
   });
+
+  for(let d=1;d<=days();d++){
+    let arr=map[d]||[];
+
+    if(arr.length===0){
+      body.innerHTML+=`<tr><td>${d}</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    }else if(arr.length===1){
+      let e=arr[0];
+      body.innerHTML+=`
+      <tr>
+        <td>${d}</td>
+        <td>${e.code}</td>
+        <td>${e.start}</td>
+        <td>${e.end}</td>
+        <td>${hours(e.start,e.end).toFixed(2)}</td>
+        <td>${e.desc}</td>
+      </tr>`;
+    }else{
+      arr.forEach((e,i)=>{
+        body.innerHTML+=`
+        <tr>
+          ${i===0?`<td rowspan="${arr.length}" style="vertical-align:middle;">${d}</td>`:''}
+          <td>${e.code}</td>
+          <td>${e.start}</td>
+          <td>${e.end}</td>
+          <td>${hours(e.start,e.end).toFixed(2)}</td>
+          <td>${e.desc}</td>
+        </tr>`;
+      });
+    }
+  }
 }
 
 el("saveBtn").onclick=()=>{
   let crp=state.crps.find(c=>c.id==el("crpSelect").value);
 
   state.entries.push({
-    day:el("day").value,
+    day:+el("day").value,
     code:crp.code,
     start:el("startTime").value,
     end:el("endTime").value,
     desc:el("description").value
   });
 
-  save();
-  render();
+  save();render();
 };
 
 el("addCrpBtn").onclick=()=>{
@@ -231,28 +287,26 @@ el("addCrpBtn").onclick=()=>{
     code:el("crpCode").value,
     label:el("crpLabel").value
   });
-
-  save();
-  render();
+  save();render();
 };
 
 el("deleteCrpBtn").onclick=()=>{
   let code=el("crpCode").value;
 
   let c=state.crps.find(x=>x.code==code);
-  if(!c)return alert("Brak");
+  if(!c)return alert("Brak CRP");
 
   if(state.entries.some(e=>e.code==code)){
-    alert("Używany!");
+    alert("CRP używany!");
     return;
   }
 
   state.crps=state.crps.filter(x=>x.code!=code);
 
-  save();
-  render();
+  save();render();
 };
 
+renderDays();
 load();
 </script>
 
