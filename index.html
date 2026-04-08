@@ -4,19 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ewidencja czasu pracy</title>
+
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
   <div class="wrap">
     <div class="topbar">
       <div>
         <h1>Ewidencja czasu pracy</h1>
         <div class="muted" id="monthLabel"></div>
       </div>
+
       <div class="inline">
         <div>
           <label>Imię i nazwisko</label>
-          <input id="fullName" placeholder="Wpisz imię i nazwisko" />
+          <input id="fullName" />
         </div>
+
         <button class="secondary mini" id="previewBtn">Podgląd A4</button>
         <button class="primary mini" id="printBtn">Drukuj / Zapisz PDF</button>
       </div>
@@ -31,6 +36,7 @@
     <div class="grid">
       <div class="panel">
         <h2>Nowy wpis / edycja</h2>
+
         <div class="form-row">
           <div>
             <label>Dzień miesiąca</label>
@@ -41,6 +47,7 @@
             <select id="crpSelect"></select>
           </div>
         </div>
+
         <div class="form-row">
           <div>
             <label>Godzina rozpoczęcia</label>
@@ -51,78 +58,28 @@
             <input id="endTime" type="time" />
           </div>
         </div>
+
         <div class="form-row single">
-          <div>
-            <label>Opis prac</label>
-            <textarea id="description" placeholder="Np. Segregowanie"></textarea>
-          </div>
+          <textarea id="description"></textarea>
         </div>
-        <div class="btns-3">
-          <button class="success" id="startBtn">START</button>
-          <button class="danger" id="stopBtn">STOP</button>
-          <button class="ghost" id="copyPrevBtn">Kopiuj poprzedni dzień</button>
-        </div>
+
         <div class="btns">
           <button class="primary" id="saveBtn">Zapisz wpis</button>
-          <button class="ghost" id="resetBtn">Wyczyść formularz</button>
-        </div>
-        <div class="hr"></div>
-        <h2>Kody CRP</h2>
-        <div class="form-row">
-          <div>
-            <label>Kod widoczny w dokumencie</label>
-            <input id="crpCode" placeholder="17052-00" />
-          </div>
-          <div>
-            <label>Tytuł prywatny na liście</label>
-            <input id="crpLabel" placeholder="E75" />
-          </div>
-        </div>
-        <div class="btns">
-          <button class="secondary" id="addCrpBtn">Dodaj / zaktualizuj CRP</button>
-          <button class="ghost" id="seedCrpBtn">Przykład 17052-00_E75</button>
-        </div>
-        <div class="chips" id="crpChips"></div>
-        <div class="hr"></div>
-        <div class="hint">
-          Dane zapisują się automatycznie w przeglądarce. Możesz zamknąć kartę i wrócić później. W PDF prywatny tytuł CRP nie jest drukowany.
+          <button class="ghost" id="resetBtn">Wyczyść</button>
         </div>
       </div>
 
       <div class="panel">
-        <h2>Wpisy bieżącego miesiąca</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Dzień</th>
-                <th>Numer CRP</th>
-                <th>Start</th>
-                <th>Koniec</th>
-                <th>Suma godzin</th>
-                <th>Opis prac</th>
-                <th>Akcje</th>
-              </tr>
-            </thead>
-            <tbody id="entriesBody"></tbody>
-          </table>
-        </div>
-        <div class="hr"></div>
-        <h2>Podsumowanie CRP</h2>
-        <div class="table-wrap" style="max-height:220px;">
-          <table>
-            <thead>
-              <tr><th>Numer CRP</th><th>Suma godzin</th></tr>
-            </thead>
-            <tbody id="crpSummaryBody"></tbody>
-          </table>
-        </div>
+        <h2>Wpisy</h2>
+        <table>
+          <tbody id="entriesBody"></tbody>
+        </table>
       </div>
     </div>
   </div>
 
   <div id="printSheet"></div>
-<link rel="stylesheet" heef="style.css">
-  <script scr="script.js"></script>
+
+  <script src="script.js"></script>
 </body>
 </html>
