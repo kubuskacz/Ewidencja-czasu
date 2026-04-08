@@ -1,214 +1,259 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Ewidencja czasu pracy</title>
+
 <style>
 :root {
-  --bg:#f5f7fb; --panel:#fff; --line:#d7ddea;
-  --text:#1f2937; --muted:#6b7280;
-  --brand:#2f6fed; --brand-2:#1d4ed8;
-  --danger:#b91c1c; --ok:#166534;
+  --bg:#f5f7fb;
+  --panel:#fff;
+  --line:#d7ddea;
+  --text:#1f2937;
+  --muted:#6b7280;
+  --brand:#2f6fed;
+  --danger:#b91c1c;
 }
-body {margin:0;font-family:Arial;background:var(--bg);}
-.wrap {max-width:1400px;margin:auto;padding:20px;}
-.panel {background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;}
-button {padding:10px;border-radius:10px;border:0;cursor:pointer;font-weight:bold;}
+
+body{margin:0;font-family:Arial;background:var(--bg);}
+.wrap{max-width:1400px;margin:auto;padding:20px;}
+
+.panel{
+  background:#fff;
+  border-radius:12px;
+  padding:16px;
+  margin-bottom:15px;
+}
+
+button{padding:10px;border:0;border-radius:8px;cursor:pointer;}
 .primary{background:#2f6fed;color:#fff;}
 .secondary{background:#eef2ff;}
 .danger{background:#fee2e2;color:#b91c1c;}
-table{width:100%;border-collapse:collapse;}
-td,th{border:1px solid #ddd;padding:6px;font-size:13px;}
+.ghost{background:#f3f4f6;}
+
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{border:1px solid #ccc;padding:6px;}
 </style>
 </head>
+
 <body>
 
 <div class="wrap">
-<h1>Ewidencja czasu pracy</h1>
 
-<div>
+<h2>Ewidencja czasu pracy</h2>
+
+<div class="panel">
 <input id="fullName" placeholder="Imię i nazwisko">
 
 <select id="monthSelect"></select>
-<input id="yearInput" type="number" style="width:80px">
+<input id="yearInput" type="number">
 
+<button id="previewBtn">Podgląd</button>
 <button id="printBtn">PDF</button>
 </div>
 
-<hr>
+<div class="panel">
 
-<h3>CRP</h3>
-<input id="crpCode" placeholder="Kod">
-<input id="crpLabel" placeholder="Opis">
-<button id="addCrpBtn">Dodaj</button>
-<button id="deleteCrpBtn" class="danger">Usuń CRP</button>
-
-<div id="crpChips"></div>
-
-<hr>
-
-<h3>Wpis</h3>
 <select id="day"></select>
 <select id="crpSelect"></select>
-<input id="startTime" type="time">
-<input id="endTime" type="time">
-<input id="description">
+
+<input type="time" id="startTime">
+<input type="time" id="endTime">
+
+<textarea id="description"></textarea>
+
 <button id="saveBtn">Zapisz</button>
 
-<hr>
+</div>
 
+<div class="panel">
+<h3>CRP</h3>
+
+<input id="crpCode" placeholder="Kod">
+<input id="crpLabel" placeholder="Opis">
+
+<button id="addCrpBtn">Dodaj</button>
+<button class="danger" id="deleteCrpBtn">Usuń CRP</button>
+
+<div id="crpChips"></div>
+</div>
+
+<div class="panel">
 <table>
 <thead>
 <tr>
-<th>Dzień</th><th>CRP</th><th>Start</th><th>Koniec</th><th>h</th>
+<th>Dzień</th>
+<th>CRP</th>
+<th>Start</th>
+<th>Koniec</th>
+<th>Godziny</th>
+<th>Opis</th>
 </tr>
 </thead>
 <tbody id="entriesBody"></tbody>
 </table>
+</div>
 
 </div>
 
 <div id="printSheet"></div>
 
 <script>
-const STORAGE_PREFIX='ewidencja-v4';
+const STORAGE_KEY = "ewidencja";
 
 function getKey(){
-  return STORAGE_PREFIX+"-"+state.year+"-"+state.month;
+  return STORAGE_KEY+"-"+state.year+"-"+state.month;
 }
 
-function load(){
-  return JSON.parse(localStorage.getItem(getKey())||"null");
-}
-function save(){
-  localStorage.setItem(getKey(),JSON.stringify(state));
-}
-
-const now=new Date();
-let state=load()||{
-  month:now.getMonth(),
-  year:now.getFullYear(),
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+  month:new Date().getMonth(),
+  year:new Date().getFullYear(),
   crps:[],
   entries:[]
 };
 
+function save(){
+  localStorage.setItem(getKey(),JSON.stringify(state));
+}
+
 const el=id=>document.getElementById(id);
 
-function renderMonth(){
-  el('monthSelect').innerHTML='';
-  for(let i=0;i<12;i++){
-    let o=document.createElement('option');
-    o.value=i;o.textContent=i+1;
-    el('monthSelect').appendChild(o);
-  }
-  el('monthSelect').value=state.month;
-  el('yearInput').value=state.year;
+const monthSelect=el("monthSelect");
+const yearInput=el("yearInput");
+
+for(let i=0;i<12;i++){
+  let o=document.createElement("option");
+  o.value=i;
+  o.textContent=i+1;
+  monthSelect.appendChild(o);
 }
 
-el('monthSelect').onchange=()=>{
-  state.month=Number(el('monthSelect').value);
-  state=load()||{...state,entries:[]};
-  renderAll();
-};
-el('yearInput').oninput=()=>{
-  state.year=Number(el('yearInput').value);
-  state=load()||{...state,entries:[]};
-  renderAll();
+monthSelect.value=state.month;
+yearInput.value=state.year;
+
+monthSelect.onchange=()=>{
+  state.month=Number(monthSelect.value);
+  load();
 };
 
-function renderDays(){
-  el('day').innerHTML='';
-  let d=new Date(state.year,state.month+1,0).getDate();
-  for(let i=1;i<=d;i++){
-    let o=document.createElement('option');
-    o.value=i;o.textContent=i;
-    el('day').appendChild(o);
-  }
+yearInput.oninput=()=>{
+  state.year=Number(yearInput.value);
+  load();
+};
+
+function load(){
+  let saved=JSON.parse(localStorage.getItem(getKey()));
+  state.entries=saved?.entries||[];
+  state.crps=saved?.crps||[];
+  render();
 }
 
-function crpName(c){return c.label?c.code+"_"+c.label:c.code;}
-
-function renderCrps(){
-  el('crpSelect').innerHTML='';
-  el('crpChips').innerHTML='';
-  state.crps.forEach(c=>{
-    let o=document.createElement('option');
-    o.value=c.id;o.textContent=crpName(c);
-    el('crpSelect').appendChild(o);
-
-    let chip=document.createElement('div');
-    chip.textContent=crpName(c);
-    chip.style.cursor='pointer';
-    chip.onclick=()=>{
-      el('crpCode').value=c.code;
-      el('crpLabel').value=c.label||'';
-    };
-    el('crpChips').appendChild(chip);
-  });
-}
-
-function hours(s,e){
-  let[a,b]=s.split(':').map(Number);
-  let[c,d]=e.split(':').map(Number);
-  return ((c*60+d)-(a*60+b))/60;
-}
-
-function renderEntries(){
-  el('entriesBody').innerHTML='';
-  state.entries.forEach(e=>{
-    let tr=document.createElement('tr');
-    let c=state.crps.find(x=>x.id===e.crpId);
-    tr.innerHTML=`
-    <td>${e.day}</td>
-    <td>${c?c.code:''}</td>
-    <td>${e.start}</td>
-    <td>${e.end}</td>
-    <td>${e.h.toFixed(2)}</td>`;
-    el('entriesBody').appendChild(tr);
-  });
-}
-
-el('saveBtn').onclick=()=>{
-  state.entries.push({
-    id:crypto.randomUUID(),
-    day:Number(el('day').value),
-    crpId:el('crpSelect').value,
-    start:el('startTime').value,
-    end:el('endTime').value,
-    h:hours(el('startTime').value,el('endTime').value)
-  });
-  save();renderEntries();
-};
-
-el('addCrpBtn').onclick=()=>{
-  state.crps.push({
-    id:crypto.randomUUID(),
-    code:el('crpCode').value,
-    label:el('crpLabel').value
-  });
-  save();renderCrps();
-};
-
-el('deleteCrpBtn').onclick=()=>{
-  let code=el('crpCode').value;
-  let c=state.crps.find(x=>x.code===code);
-  if(!c)return alert("Brak CRP");
-
-  let used=state.entries.some(e=>e.crpId===c.id);
-  if(used)return alert("Używany!");
-
-  state.crps=state.crps.filter(x=>x.id!==c.id);
-  save();renderCrps();
-};
-
-function renderAll(){
-  renderMonth();
+function render(){
   renderDays();
   renderCrps();
   renderEntries();
 }
 
-renderAll();
+function renderDays(){
+  let d=new Date(state.year,state.month+1,0).getDate();
+  el("day").innerHTML="";
+  for(let i=1;i<=d;i++){
+    let o=document.createElement("option");
+    o.value=i;o.textContent=i;
+    el("day").appendChild(o);
+  }
+}
+
+function renderCrps(){
+  el("crpSelect").innerHTML="";
+  el("crpChips").innerHTML="";
+
+  state.crps.forEach(c=>{
+    let o=document.createElement("option");
+    o.value=c.id;
+    o.textContent=c.code;
+    el("crpSelect").appendChild(o);
+
+    let chip=document.createElement("div");
+    chip.textContent=c.code+"_"+(c.label||"");
+    chip.onclick=()=>{
+      el("crpCode").value=c.code;
+      el("crpLabel").value=c.label||"";
+    };
+    el("crpChips").appendChild(chip);
+  });
+}
+
+function hours(a,b){
+  let [h1,m1]=a.split(":");
+  let [h2,m2]=b.split(":");
+  return ((h2*60+m2)-(h1*60+m1))/60;
+}
+
+function renderEntries(){
+  let body=el("entriesBody");
+  body.innerHTML="";
+
+  state.entries.forEach(e=>{
+    let tr=document.createElement("tr");
+
+    tr.innerHTML=`
+    <td>${e.day}</td>
+    <td>${e.code}</td>
+    <td>${e.start}</td>
+    <td>${e.end}</td>
+    <td>${hours(e.start,e.end).toFixed(2)}</td>
+    <td>${e.desc}</td>
+    `;
+
+    body.appendChild(tr);
+  });
+}
+
+el("saveBtn").onclick=()=>{
+  let crp=state.crps.find(c=>c.id==el("crpSelect").value);
+
+  state.entries.push({
+    day:el("day").value,
+    code:crp.code,
+    start:el("startTime").value,
+    end:el("endTime").value,
+    desc:el("description").value
+  });
+
+  save();
+  render();
+};
+
+el("addCrpBtn").onclick=()=>{
+  state.crps.push({
+    id:crypto.randomUUID(),
+    code:el("crpCode").value,
+    label:el("crpLabel").value
+  });
+
+  save();
+  render();
+};
+
+el("deleteCrpBtn").onclick=()=>{
+  let code=el("crpCode").value;
+
+  let c=state.crps.find(x=>x.code==code);
+  if(!c)return alert("Brak");
+
+  if(state.entries.some(e=>e.code==code)){
+    alert("Używany!");
+    return;
+  }
+
+  state.crps=state.crps.filter(x=>x.code!=code);
+
+  save();
+  render();
+};
+
+load();
 </script>
 
 </body>
