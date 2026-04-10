@@ -224,6 +224,35 @@
         padding: 0;
       }
     }
+	
+	.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  width: 500px;
+  max-width: 90%;
+  box-shadow: 0 10px 30px rgba(0,0,0,.2);
+}
+
+#printBtn {
+  padding: 14px 14px;
+  font-size: 15px;
+  border-radius: 14px;
+  box-shadow: 0 6px 16px rgba(47,111,237,0.3);
+}	
   </style>
 </head>
 <body>
@@ -249,8 +278,7 @@
           <label>Rok</label>
           <input id="yearInput" type="number" style="width:90px" />
         </div>
-
-        <button class="secondary mini" id="previewBtn">Podgląd A4</button>
+		<button class="primary mini" id="crpModalBtn">Zarządzaj CRP</button>
         <button class="primary mini" id="printBtn">Drukuj / Zapisz PDF</button>
       </div>
     </div>
@@ -304,24 +332,6 @@
           <button class="ghost" id="resetBtn">Wyczyść formularz</button>
         </div>
 
-        <div class="hr"></div>
-
-        <h2>Kody CRP</h2>
-        <div class="form-row">
-          <div>
-            <label>Kod projektu</label>
-            <input id="crpCode" />
-          </div>
-          <div>
-            <label>Nazwa projektu</label>
-            <input id="crpLabel" />
-          </div>
-        </div>
-
-        <div class="btns">
-          <button class="secondary" id="addCrpBtn">Dodaj / zaktualizuj CRP</button>
-          <button class="danger" id="deleteCrpBtn">Usuń CRP</button>
-        </div>
 
         <div class="chips" id="crpChips"></div>
 
@@ -364,6 +374,34 @@
       </div>
     </div>
   </div>
+  
+<div id="crpModal" class="modal">
+  <div class="modal-content">
+    <h2>Kody CRP</h2>
+
+    <div class="form-row">
+      <div>
+        <label>Kod projektu</label>
+        <input id="crpCode" />
+      </div>
+      <div>
+        <label>Nazwa projektu</label>
+        <input id="crpLabel" />
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="secondary" id="addCrpBtn">Dodaj / zaktualizuj</button>
+      <button class="danger" id="deleteCrpBtn">Usuń</button>
+    </div>
+
+    <div class="chips" id="crpChips"></div>
+
+    <div class="btns">
+      <button class="primary" id="closeCrpModal">Zamknij</button>
+    </div>
+  </div>
+</div>
 
   <div id="printSheet"></div>
 
@@ -389,12 +427,14 @@
     const monthLabel = el('monthLabel');
     const daySelect = el('day');
     const crpSelect = el('crpSelect');
+	const CRP_STORAGE_KEY = 'ewidencja-crp-global';
     const entriesBody = el('entriesBody');
     const crpSummaryBody = el('crpSummaryBody');
     const fullNameInput = el('fullName');
     const printSheet = el('printSheet');
     const monthSelect = el('monthSelect');
     const yearInput = el('yearInput');
+	
 
     function getStorageKey(year = state.year, month = state.month) {
       return `${STORAGE_PREFIX}-${year}-${month}`;
@@ -414,19 +454,30 @@
     }
 
     function switchMonthYear(month, year) {
-      const saved = loadMonthState(year, month);
-      state = saved || defaultState(month, year);
+  const saved = loadMonthState(year, month);
 
-      monthSelect.value = String(state.month);
-      yearInput.value = String(state.year);
-      fullNameInput.value = state.fullName || '';
+  const globalCrps = loadGlobalCrps();
 
-      renderDays();
-      renderCrps();
-      renderEntries();
-      updateMonthLabel();
-      buildPrintPreview(false);
-    }
+state = saved || defaultState(month, year);
+
+// 🔥 nadpisujemy CRP globalnym
+state.crps = globalCrps;
+
+  // 🔥 TO DODAJ
+  state.month = month;
+  state.year = year;
+
+  monthSelect.value = String(month);
+  yearInput.value = String(year);
+
+  fullNameInput.value = state.fullName || '';
+
+  renderDays();
+  renderCrps();
+  renderEntries();
+  updateMonthLabel();
+  buildPrintPreview(false);
+}
 
     function polishMonthYear(d) {
       return d.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
@@ -463,7 +514,7 @@
       monthSelect.innerHTML = '';
       for (let i = 0; i < 12; i++) {
         const opt = document.createElement('option');
-        opt.value = i;
+        opt.value = String(i);
         opt.textContent = i + 1;
         monthSelect.appendChild(opt);
       }
@@ -502,78 +553,37 @@
     }
 
     function renderCrps() {
-      crpSelect.innerHTML = '';
-      const blank = document.createElement('option');
-      blank.value = '';
-      blank.textContent = 'Wybierz CRP';
-      crpSelect.appendChild(blank);
+  crpSelect.innerHTML = '';
 
-      state.crps.forEach((crp) => {
-        const opt = document.createElement('option');
-        opt.value = crp.id;
-        opt.textContent = crpDisplayName(crp);
-        crpSelect.appendChild(opt);
-      });
+  const blank = document.createElement('option');
+  blank.value = '';
+  blank.textContent = 'Wybierz CRP';
+  crpSelect.appendChild(blank);
 
-      el('crpChips').innerHTML = '';
+  state.crps.forEach((crp) => {
+    const opt = document.createElement('option');
+    opt.value = crp.id;
+    opt.textContent = crpDisplayName(crp);
+    crpSelect.appendChild(opt);
+  });
 
-state.crps.forEach((crp) => {
-  el('crpChips').innerHTML = '';
+  const chipsContainer = document.querySelector('#crpModal #crpChips');
+chipsContainer.innerHTML = '';
 
-state.crps.forEach((crp) => {
-  const chip = document.createElement('div');
-  chip.className = 'chip';
-  chip.textContent = crpDisplayName(crp);
-  chip.title = 'Kliknij, aby wczytać do edycji';
-  chip.style.cursor = 'pointer';
+  state.crps.forEach((crp) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.textContent = crpDisplayName(crp);
+    chip.style.cursor = 'pointer';
 
-  chip.onclick = () => {
-    el('crpCode').value = crp.code;
-    el('crpLabel').value = crp.label || '';
-  };
+    chip.onclick = () => {
+      el('crpCode').value = crp.code;
+      el('crpLabel').value = crp.label || '';
+    };
 
-  el('crpChips').appendChild(chip);
-});
-
-  // tekst CRP
-  const label = document.createElement('span');
-  label.textContent = crpDisplayName(crp);
-  label.style.cursor = 'pointer';
-  label.title = 'Kliknij, aby wczytać do edycji';
-
-  label.onclick = () => {
-    el('crpCode').value = crp.code;
-    el('crpLabel').value = crp.label || '';
-  };
-
-  // ❌ usuwanie
-  const remove = document.createElement('span');
-  remove.textContent = '✕';
-  remove.style.cursor = 'pointer';
-  remove.style.color = '#b91c1c';
-  remove.style.fontWeight = 'bold';
-
-  remove.onclick = () => {
-    if (!confirm(`Usunąć CRP ${crp.code}?`)) return;
-
-    // sprawdzenie czy używany
-    const used = state.entries.some(e => e.crpId === crp.id);
-    if (used) {
-      alert('Nie możesz usunąć CRP używanego we wpisach!');
-      return;
-    }
-
-    state.crps = state.crps.filter(c => c.id !== crp.id);
-    renderCrps();
-    saveState();
-  };
-
-  chip.appendChild(label);
-  chip.appendChild(remove);
-
-  el('crpChips').appendChild(chip);
-});
-    }
+    chipsContainer.appendChild(chip);
+  });
+}
 
     function escapeHtml(str) {
       return String(str).replace(/[&<>\"]/g, c => ({
@@ -613,6 +623,19 @@ state.crps.forEach((crp) => {
       buildPrintPreview(false);
       saveState();
     }
+	
+	function loadGlobalCrps() {
+  try {
+    const raw = localStorage.getItem(CRP_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveGlobalCrps() {
+  localStorage.setItem(CRP_STORAGE_KEY, JSON.stringify(state.crps));
+}
 
     function renderEntries() {
       const sorted = [...state.entries].sort((a, b) =>
@@ -742,6 +765,7 @@ state.crps.forEach((crp) => {
       el('crpCode').value = '';
       el('crpLabel').value = '';
       renderCrps();
+	  saveGlobalCrps();
       saveState();
     }
 
@@ -971,12 +995,12 @@ for (let day = 1; day <= totalDays; day++) {
 
   renderCrps();
   renderEntries();
+  saveGlobalCrps();
   saveState();
 };
     el('startBtn').onclick = startTimer;
     el('stopBtn').onclick = stopTimer;
     el('copyPrevBtn').onclick = copyPreviousDay;
-    el('previewBtn').onclick = () => buildPrintPreview(true);
     el('printBtn').onclick = () => {
       buildPrintPreview(false);
       window.print();
@@ -986,8 +1010,32 @@ for (let day = 1; day <= totalDays; day++) {
       updateSummary();
     };
 
-    initMonthControls();
-    switchMonthYear(now.getMonth(), now.getFullYear());
+		initMonthControls();
+		state.crps = loadGlobalCrps();
+		switchMonthYear(now.getMonth(), now.getFullYear());
+
+	window.onload = () => {
+		renderEntries();
+		};
+		
+		const crpModal = el('crpModal');
+
+el('crpModalBtn').onclick = () => {
+renderCrps();
+  crpModal.style.display = 'flex';
+};
+
+el('closeCrpModal').onclick = () => {
+  crpModal.style.display = 'none';
+};
+
+// zamknięcie klikając poza okno
+crpModal.onclick = (e) => {
+  if (e.target === crpModal) {
+    crpModal.style.display = 'none';
+  }
+};
+
   </script>
 </body>
 </html>
